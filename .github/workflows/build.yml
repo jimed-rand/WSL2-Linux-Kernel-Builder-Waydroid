@@ -16,10 +16,10 @@ jobs:
     steps:
 
     - name: Checkout WSL2 Kernel Builder
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Checkout WSL2 Kernel Repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: 'microsoft/WSL2-Linux-Kernel'
         ref: ${{ matrix.branch }}
@@ -35,7 +35,7 @@ jobs:
       run: cp Microsoft/config-wsl ./.config
 
     - name: Apply USB Config # for 5.4. branch only
-      if: ${{ matrix.branch == 'linux-msft-wsl-5.4.y' }}
+      if: ${{ matrix.branch == 'linux-msft-wsl-6.6.y' }}
       working-directory: ./kernel-${{ matrix.branch }}
       run: scripts/kconfig/merge_config.sh -m -y .config ../waydroid.config
 
@@ -57,7 +57,7 @@ jobs:
         mv arch/x86/boot/bzImage arch/x86/boot/${{ matrix.branch }}-can-usbip-bzImage
 
     - name: Archive kernel
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.branch }}-can-usbip
         path: kernel-${{ matrix.branch }}/arch/x86/boot/${{ matrix.branch }}-can-usbip-bzImage
