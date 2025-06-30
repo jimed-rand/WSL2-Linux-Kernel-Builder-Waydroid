@@ -43,21 +43,64 @@ jobs:
       working-directory: ./kernel-${{ matrix.branch }}
       run: scripts/kconfig/merge_config.sh -m -y .config ../usb.config
 
-    - name: Apply CAN Config
+    - name: Apply CAN Config and Set Custom Kernel Name
       working-directory: ./kernel-${{ matrix.branch }}
       run: |
-        sed -Ei "s/(CONFIG_LOCALVERSION=\")(.*)(\")/\1-can-usbip-WSL2\3/g" .config
+        sed -Ei "s/(CONFIG_LOCALVERSION=\")(.*)(\")/\1-jimedrand-WSL2\3/g" .config
         for file in ../[^usb]*.config; do scripts/kconfig/merge_config.sh -m -y .config $file ; done
         scripts/kconfig/merge_config.sh -y .config ../can.config
+
+    - name: Verify Binder Module Configuration
+      working-directory: ./kernel-${{ matrix.branch }}
+      run: |
+        echo "=== Verifying Binder Module Configuration ==="
+        
+        # Check if binder modules are enabled
+        binder_configs=(
+          "CONFIG_ANDROID_BINDER_IPC"
+          "CONFIG_ANDROID_BINDERFS"
+          "CONFIG_ANDROID_BINDER_DEVICES"
+        )
+        
+        config_missing=false
+        
+        for config in "${binder_configs[@]}"; do
+          if grep -q "^${config}=" .config; then
+            value=$(grep "^${config}=" .config | cut -d'=' -f2)
+            echo "✓ ${config}=${value}"
+          else
+            echo "✗ ${config} not found or not enabled"
+            config_missing=true
+          fi
+        done
+        
+        # Check ANDROID_BINDER_DEVICES value specifically
+        if grep -q "^CONFIG_ANDROID_BINDER_DEVICES=" .config; then
+          devices=$(grep "^CONFIG_ANDROID_BINDER_DEVICES=" .config | cut -d'=' -f2 | tr -d '"')
+          echo "Binder devices: ${devices}"
+          if [[ "${devices}" == *"binder"* ]] && [[ "${devices}" == *"hwbinder"* ]] && [[ "${devices}" == *"vndbinder"* ]]; then
+            echo "✓ All required binder devices are configured"
+          else
+            echo "⚠ Warning: Some binder devices might be missing"
+          fi
+        fi
+        
+        if [ "$config_missing" = true ]; then
+          echo "⚠ Warning: Some Binder configurations are missing. Waydroid might not work properly."
+        else
+          echo "✓ All Binder configurations are present"
+        fi
+        
+        echo "=== Binder Verification Complete ==="
 
     - name: Build
       working-directory: ./kernel-${{ matrix.branch }}
       run: |
         make -j $(echo `nproc` + 1 | bc)
-        mv arch/x86/boot/bzImage arch/x86/boot/${{ matrix.branch }}-can-usbip-bzImage
+        mv arch/x86/boot/bzImage arch/x86/boot/${{ matrix.branch }}-jimedrand-bzImage
 
     - name: Archive kernel
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.branch }}-can-usbip
-        path: kernel-${{ matrix.branch }}/arch/x86/boot/${{ matrix.branch }}-can-usbip-bzImage
+        name: ${{ matrix.branch }}-jimedrand
+        path: kernel-${{ matrix.branch }}/arch/x86/boot/${{ matrix.branch }}-jimedrand-bzImage
